@@ -1,4 +1,4 @@
-package com.example.myapplication2.app;
+package com.moocorder;
 
 import android.os.Bundle;
 import android.os.StrictMode;
@@ -22,7 +22,7 @@ public class MainActivity extends ActionBarActivity {
     private ImageButton greenButton;
     private ImageButton redButton;
     private static Socket socket;
-    private String host = "192.168.0.10";
+    private String host = "149.154.211.180";
     private int port = 8091;
 
     @Override
