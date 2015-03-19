@@ -1,16 +1,20 @@
 package com.moocorder;
 
+import android.app.Activity;
+import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.os.Looper;
 import android.os.StrictMode;
+import android.preference.PreferenceManager;
 import android.support.v7.app.ActionBarActivity;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
 import android.widget.ImageButton;
+import android.widget.Toast;
 
-import java.io.BufferedWriter;
-import java.io.OutputStream;
-import java.io.OutputStreamWriter;
+import java.io.*;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -22,8 +26,9 @@ public class MainActivity extends ActionBarActivity {
     private ImageButton greenButton;
     private ImageButton redButton;
     private static Socket socket;
-    private String host = "149.154.211.180";
-    private int port = 8091;
+    private String host = "192.168.0.10";
+    private int port = 80;
+    private String username = "Anonymous";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -52,7 +57,11 @@ public class MainActivity extends ActionBarActivity {
                 sendCommand("2");
             }
         });
+        SharedPreferences defaultSharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+        username = defaultSharedPreferences.getString("username", username);
 
+        host = defaultSharedPreferences.getString("url", host);
+        port = Integer.valueOf(defaultSharedPreferences.getString("port", port + ""));
     }
 
 
@@ -65,52 +74,69 @@ public class MainActivity extends ActionBarActivity {
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        // Handle action bar item clicks here. The action bar will
-        // automatically handle clicks on the Home/Up button, so long
-        // as you specify a parent activity in AndroidManifest.xml.
-        int id = item.getItemId();
+        // Handle item selection
+        switch (item.getItemId()) {
+            case R.id.action_settings:
+                Intent intent = new Intent(this, SettingsActivity.class);
+                startActivity(intent);
+                return true;
 
-        //noinspection SimplifiableIfStatement
-        if (id == R.id.action_settings) {
-            return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
-
-        return super.onOptionsItemSelected(item);
     }
 
-    public void sendCommand(String param)
-    {
-        try {
-            InetAddress address = InetAddress.getByName(host);
-            InetSocketAddress inetSocketAddress = new InetSocketAddress(address, port);
-            socket = new Socket();
-            socket.connect(inetSocketAddress, 4000);
+    public void sendCommand(final String param) {
+        Thread thread = new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Looper.prepare();
+                try {
 
-            //Send the message to the server
-            OutputStream os = socket.getOutputStream();
-            OutputStreamWriter osw = new OutputStreamWriter(os);
-            BufferedWriter bw = new BufferedWriter(osw);
+                    InetAddress address = InetAddress.getByName(host);
+                    InetSocketAddress inetSocketAddress = new InetSocketAddress(address, port);
+
+                    socket = new Socket();
+                    socket.connect(inetSocketAddress, 4000);
+
+                    //Send the message to the server
+                    OutputStream os = socket.getOutputStream();
+                    OutputStreamWriter osw = new OutputStreamWriter(os);
+                    BufferedWriter bw = new BufferedWriter(osw);
 
 
-            String sendMessage = param;
-            bw.write(sendMessage);
-            bw.flush();
-            System.out.println("Message sent to the server : " + sendMessage);
+                    String sendMessage = param;
+                    bw.write(sendMessage);
+                    bw.newLine();
+                    bw.flush();
+                    BufferedReader in =
+                            new BufferedReader(
+                                    new InputStreamReader(socket.getInputStream()));
+                    String response = in.readLine();
 
-        }
-        catch (Exception exception) {
-            exception.printStackTrace();
-        }
-        finally {
-            //Closing the socket
-            try {
-                if(socket!=null && socket.isConnected()) {
-                    socket.close();
+                    System.out.println("Message sent to the server : " + sendMessage + " Response : "+response);
+                    Toast toast = Toast.makeText(getApplicationContext(), response, Toast.LENGTH_LONG);
+                    toast.show();
+
+
                 }
+                catch (Exception exception) {
+                    exception.printStackTrace();
+                }
+                finally {
+                    //Closing the socket
+                    try {
+                        if (socket != null && socket.isConnected()) {
+                            socket.close();
+                        }
+                    }
+                    catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                }
+                Looper.loop();
             }
-            catch (Exception e) {
-                e.printStackTrace();
-            }
-        }
+        });
+        thread.start();
     }
 }
